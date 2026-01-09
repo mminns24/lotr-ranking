@@ -67,6 +67,7 @@
     .toast{ font-size:13px; color:#b9ffcf; margin-top:8px; display:none; }
     .warn{ font-size:13px; color:#ffcfb9; margin-top:10px; display:none; }
     .footer{ margin-top:12px; font-size:12px; color:var(--muted); }
+    .kbd{ font-family: ui-monospace,SFMono-Regular,Menlo,monospace; padding:2px 6px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,.05); }
 
     /* Parchment "final" view */
     #finalWrap{ display:none; margin-top:14px; }
@@ -149,7 +150,79 @@
       margin-right:8px;
     }
 
-    .kbd{ font-family: ui-monospace,SFMono-Regular,Menlo,monospace; padding:2px 6px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,.05); }
+    /* Map modal */
+    .modalOverlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.72);
+      display:none;
+      z-index:9999;
+    }
+    .modalShell{
+      position:absolute; inset:10px;
+      background: rgba(18,26,51,.92);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:18px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .modalTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+    }
+    .modalTitle{
+      font-weight:800;
+      font-size:14px;
+      color: var(--text);
+    }
+    .modalBtns{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .iconBtn{
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      font-weight:800;
+      cursor:pointer;
+    }
+    .mapStage{
+      position:relative;
+      flex:1 1 auto;
+      overflow:hidden;
+      touch-action:none; /* Panzoom takes over */
+      background: rgba(0,0,0,.18);
+    }
+    .mapInner{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+    }
+    .mapImg{
+      max-width:none;
+      width:auto;
+      height:auto;
+      max-height: none;
+      user-select:none;
+      -webkit-user-drag:none;
+      touch-action:none;
+      transform-origin: 0 0;
+    }
+    .mapHint{
+      position:absolute;
+      left:10px; right:10px; bottom:10px;
+      font-size:12px;
+      color: rgba(232,236,255,.85);
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      padding:8px 10px;
+    }
   </style>
 </head>
 <body>
@@ -170,6 +243,7 @@
 
           <div class="row">
             <button id="rerollBtn" class="primary" type="button">Re-roll name</button>
+            <button id="viewMapBtn" type="button">View Map</button>
           </div>
 
           <div class="footer">Saved on this device automatically.</div>
@@ -207,13 +281,34 @@
     </div>
   </div>
 
+  <!-- Map Modal -->
+  <div id="mapModal" class="modalOverlay" aria-hidden="true">
+    <div class="modalShell" role="dialog" aria-label="Middle-earth map">
+      <div class="modalTop">
+        <div class="modalTitle">Middle-earth Map</div>
+        <div class="modalBtns">
+          <button id="resetZoomBtn" class="iconBtn" type="button">Reset zoom</button>
+          <button id="closeMapBtn" class="iconBtn" type="button">Close ✕</button>
+        </div>
+      </div>
+      <div class="mapStage" id="mapStage">
+        <div class="mapInner">
+          <!-- IMPORTANT: upload Middle_Earth.png into your GitHub repo root alongside index.html -->
+          <img id="mapImg" class="mapImg" src="Middle_Earth.png" alt="Map of Middle-earth" />
+        </div>
+        <div class="mapHint">Pinch to zoom • Drag to pan • Double-tap to zoom</div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.6.1/dist/panzoom.min.js"></script>
 
   <script>
-    const STORAGE_KEY_ORDER = "lotr_rank_order_v4";
-    const STORAGE_KEY_LOCK  = "lotr_rank_locked_v4";
-    const STORAGE_KEY_NAME  = "lotr_rank_name_v4";
+    const STORAGE_KEY_ORDER = "lotr_rank_order_v5";
+    const STORAGE_KEY_LOCK  = "lotr_rank_locked_v5";
+    const STORAGE_KEY_NAME  = "lotr_rank_name_v5";
 
     const titlesDefault = [
       "The Hobbit",
@@ -224,19 +319,10 @@
       "Return of the King"
     ];
 
-    // Option A: disallowed list entries are replaced with safe fantasy-ish alternatives.
-    const SAFE_REPLACEMENTS = [
-      "Dusk","Ember","Merry","Mirth","Stub","Froth","Muck","Soot","Brisk","Odd","Baffled"
-    ];
-
-    // Allowed words from your list that are not slurs/hate speech/explicit profanity.
-    const PART12_ALLOWED = [
-      "Huge","Slimey","Smelly","Sticky","Thick","Little","Frumpy","Ass","Fart","Dump","Fat","Wood","Bush","Fag","Black","Retard","Dick","Cock","Shit","Fuck","Gay","Hog","Nips","Goblin","Nude","Nutsack","Taint","Wild","Hole","Dirty","Pussy"
-    ];
-
+    // Option A safe replacements
+    const SAFE_REPLACEMENTS = ["Dusk","Ember","Merry","Mirth","Stub","Froth","Muck","Soot","Brisk","Odd","Baffled"];
+    const PART12_ALLOWED = ["Huge","Slimey","Smelly","Sticky","Thick","Little","Frumpy","Ass","Fart","Dump","Fat","Wood","Bush","Fag","Black","Retard","Dick","Cock","Shit","Fuck","Gay","Hog","Nips","Goblin","Nude","Nutsack","Taint","Wild","Hole","Dirty","Pussy"];
     const PART12_POOL = PART12_ALLOWED.concat(SAFE_REPLACEMENTS);
-
-    // Last names kept exactly as you gave them (capitalized for display).
     const LASTNAMES = ["Baggins","Took","Gamgee","Brandybuck","Underhill","Proudfoot"];
 
     const listEl = document.getElementById("list");
@@ -253,7 +339,16 @@
     const parchmentEl = document.getElementById("parchment");
     const parchmentNameEl = document.getElementById("parchmentName");
 
+    // Map modal DOM
+    const mapModal = document.getElementById("mapModal");
+    const viewMapBtn = document.getElementById("viewMapBtn");
+    const closeMapBtn = document.getElementById("closeMapBtn");
+    const resetZoomBtn = document.getElementById("resetZoomBtn");
+    const mapImg = document.getElementById("mapImg");
+    const mapStage = document.getElementById("mapStage");
+
     let sortableInstance = null;
+    let panzoomInstance = null;
 
     function showToast(text="Saved ✓") {
       toast.textContent = text;
@@ -381,6 +476,58 @@
       showToast("Image saved ✓");
     }
 
+    // Map modal logic
+    function openMap() {
+      mapModal.style.display = "block";
+      mapModal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+
+      // Init panzoom once
+      if (!panzoomInstance && typeof Panzoom !== "undefined") {
+        panzoomInstance = Panzoom(mapImg, {
+          maxScale: 6,
+          minScale: 1,
+          contain: "outside"
+        });
+
+        // Enable wheel zoom on desktop and pinch zoom on mobile
+        mapStage.addEventListener("wheel", panzoomInstance.zoomWithWheel, { passive: false });
+        // Double tap to zoom (simple)
+        let lastTap = 0;
+        mapStage.addEventListener("touchend", (e) => {
+          const now = Date.now();
+          if (now - lastTap < 260) {
+            // double tap: zoom in a bit centered
+            panzoomInstance.zoomIn();
+          }
+          lastTap = now;
+        }, { passive: true });
+      }
+
+      // Reset view each time opened so it starts nice
+      if (panzoomInstance) panzoomInstance.reset();
+    }
+
+    function closeMap() {
+      mapModal.style.display = "none";
+      mapModal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    viewMapBtn.addEventListener("click", openMap);
+    closeMapBtn.addEventListener("click", closeMap);
+    resetZoomBtn.addEventListener("click", () => panzoomInstance && panzoomInstance.reset());
+
+    // Close when tapping outside the shell
+    mapModal.addEventListener("click", (e) => {
+      if (e.target === mapModal) closeMap();
+    });
+
+    // Close on Escape
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && mapModal.style.display === "block") closeMap();
+    });
+
     // Init
     setName(loadName());
     render(loadOrder());
@@ -461,6 +608,11 @@
       downloadParchmentPng().catch(() => {
         alert("Couldn’t generate the image on this device/browser. Try Chrome or Safari, or take a screenshot of the parchment.");
       });
+    });
+
+    // If the map image fails to load, show a helpful message in console (common if image wasn't uploaded)
+    mapImg.addEventListener("error", () => {
+      console.warn("Map image not found. Upload Middle_Earth.png to your repo root next to index.html.");
     });
   </script>
 </body>
