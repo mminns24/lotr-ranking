@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Rank the Movies</title>
+  <title>LOTR Quest Ranker</title>
   <style>
     :root { --bg:#0b1020; --card:#121a33; --text:#e8ecff; --muted:#aab3d6; --border:rgba(255,255,255,.12); }
     body{ margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:radial-gradient(1200px 700px at 50% -20%, #1a2a66 0%, var(--bg) 55%); color:var(--text); }
@@ -12,12 +12,7 @@
     p{ margin:0 0 14px; color:var(--muted); line-height:1.4; }
     .card{ background:rgba(18,26,51,.9); border:1px solid var(--border); border-radius:18px; padding:14px; box-shadow: 0 16px 30px rgba(0,0,0,.28); }
 
-    .grid{ display:grid; gap:14px; grid-template-columns: 1fr; }
-    @media (min-width: 760px){
-      .grid{ grid-template-columns: 1fr 1fr; align-items:start; }
-    }
-
-    .panel{ border:1px solid var(--border); border-radius:18px; padding:14px; background:rgba(255,255,255,.04); }
+    .panel{ border:1px solid var(--border); border-radius:18px; padding:14px; background:rgba(255,255,255,.04); margin-bottom:14px; }
     .panel h2{ margin:0 0 6px; font-size:16px; letter-spacing:.2px; }
     .panel .sub{ margin:0 0 10px; color:var(--muted); font-size:13px; }
 
@@ -32,20 +27,35 @@
     button:active{ transform: translateY(1px); }
 
     /* Name generator */
-    .nameBox{
+    .nameBox{ border-radius:16px; padding:12px 12px; border:1px solid var(--border); background:rgba(255,255,255,.05); }
+    .nameLabel{ font-size:12px; color:var(--muted); margin-bottom:6px; }
+    .nameValue{ font-family: Georgia, "Times New Roman", serif; font-weight:900; letter-spacing:.4px; font-size:20px; line-height:1.2; }
+
+    /* Consumption tracker */
+    .iconsRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+    .iconBtnWrap{
+      display:flex; align-items:center; gap:8px;
+      padding:8px 10px;
       border-radius:16px;
-      padding:12px 12px;
       border:1px solid var(--border);
       background:rgba(255,255,255,.05);
+      cursor:pointer;
+      user-select:none; -webkit-user-select:none;
+      touch-action: manipulation;
     }
-    .nameLabel{ font-size:12px; color:var(--muted); margin-bottom:6px; }
-    .nameValue{
-      font-family: Georgia, "Times New Roman", serif;
-      font-weight:900;
-      letter-spacing:.4px;
-      font-size:20px;
-      line-height:1.2;
+    .iconBtnWrap:active{ transform: translateY(1px); }
+    .iconImg{
+      width:42px; height:42px;
+      border-radius:12px;
+      object-fit:cover;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.12);
+      flex:0 0 auto;
     }
+    .iconMeta{ display:flex; flex-direction:column; line-height:1.1; }
+    .iconName{ font-weight:900; font-size:12px; color: var(--text); }
+    .iconCount{ font-weight:900; font-size:16px; color: #eafff2; }
+    .tiny{ font-size:12px; color: var(--muted); margin-top:8px; }
 
     /* Ranking list */
     #list{ list-style:none; padding:0; margin:10px 0 0; }
@@ -66,7 +76,7 @@
 
     .toast{ font-size:13px; color:#b9ffcf; margin-top:8px; display:none; }
     .warn{ font-size:13px; color:#ffcfb9; margin-top:10px; display:none; }
-    .footer{ margin-top:12px; font-size:12px; color:var(--muted); }
+    .footer{ margin-top:10px; font-size:12px; color:var(--muted); }
     .kbd{ font-family: ui-monospace,SFMono-Regular,Menlo,monospace; padding:2px 6px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,.05); }
 
     /* Parchment "final" view */
@@ -124,6 +134,32 @@
       margin:2px 0 10px;
       letter-spacing:.3px;
     }
+    .divider{
+      position:relative;
+      height:1px;
+      margin:12px 0 10px;
+      background: rgba(80,30,10,.18);
+    }
+    .questTitle{
+      position:relative;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight:900;
+      font-size:16px;
+      margin:0 0 6px;
+    }
+    .questLine{
+      position:relative;
+      font-family: "Brush Script MT", "Comic Sans MS", "Segoe Script", cursive;
+      font-size:22px;
+      padding:8px 10px;
+      margin:4px 0;
+      border-radius:14px;
+      background: rgba(255,255,255,.10);
+      border: 1px dashed rgba(60,30,10,.22);
+      transform: rotate(0.15deg);
+    }
+    .questLine:nth-child(even){ transform: rotate(-0.15deg); }
+
     .ink{
       position:relative;
       font-family: "Brush Script MT", "Comic Sans MS", "Segoe Script", cursive;
@@ -194,22 +230,13 @@
       position:relative;
       flex:1 1 auto;
       overflow:hidden;
-      touch-action:none; /* Panzoom takes over */
+      touch-action:none;
       background: rgba(0,0,0,.18);
     }
-    .mapInner{
-      position:absolute;
-      inset:0;
-      display:grid;
-      place-items:center;
-    }
+    .mapInner{ position:absolute; inset:0; display:grid; place-items:center; }
     .mapImg{
       max-width:none;
-      width:auto;
-      height:auto;
-      max-height: none;
-      user-select:none;
-      -webkit-user-drag:none;
+      user-select:none; -webkit-user-drag:none;
       touch-action:none;
       transform-origin: 0 0;
     }
@@ -227,61 +254,118 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Rank the Movies (with a Shire name)</h1>
-    <p>Generate a name, rank the titles, then submit to lock everything into a parchment “final list” you can download as an image.</p>
+    <h1>LOTR Quest Ranker</h1>
+    <p>Generate a name, track “consumption”, rank the movies, then submit to seal a parchment you can download as an image.</p>
 
     <div class="card">
-      <div class="grid">
-        <div class="panel">
-          <h2>LOTR Name Generator</h2>
-          <p class="sub">Re-roll as much as you want. Whatever name is showing when you submit will be sealed at the top of the parchment.</p>
+      <div class="panel">
+        <h2>LOTR Name Generator</h2>
+        <p class="sub">Re-roll as much as you want. Whatever name is showing when you submit will be sealed on the parchment.</p>
 
-          <div class="nameBox" aria-label="Generated name">
-            <div class="nameLabel">Your name</div>
-            <div id="nameValue" class="nameValue">—</div>
-          </div>
-
-          <div class="row">
-            <button id="rerollBtn" class="primary" type="button">Re-roll name</button>
-            <button id="viewMapBtn" type="button">View Map</button>
-          </div>
-
-          <div class="footer">Saved on this device automatically.</div>
+        <div class="nameBox" aria-label="Generated name">
+          <div class="nameLabel">Your name</div>
+          <div id="nameValue" class="nameValue">—</div>
         </div>
 
-        <div class="panel">
-          <h2>Movie Rankings</h2>
-          <p class="sub">Tip: press and hold the <span class="kbd">≡</span> handle to drag.</p>
+        <div class="row">
+          <button id="rerollBtn" class="primary" type="button">Re-roll name</button>
+          <button id="viewMapBtn" type="button">View Map</button>
+        </div>
 
-          <ul id="list" aria-label="Movie ranking list"></ul>
+        <div class="footer">Saved on this device automatically.</div>
+      </div>
 
-          <div class="row">
-            <button id="submitBtn" class="primary" type="button">Submit (lock & make parchment)</button>
-            <button id="downloadBtn" type="button" disabled>Download parchment image</button>
-            <button id="resetBtn" class="danger" type="button">Reset</button>
-            <button id="copyBtn" type="button">Copy rankings</button>
+      <div class="panel">
+        <h2>Quest Consumption Tracker</h2>
+        <p class="sub">Tap an icon to add +1. Your counts save automatically on this phone.</p>
+
+        <div class="iconsRow" id="iconsRow" aria-label="Consumption icons">
+          <div class="iconBtnWrap" data-key="vodka" role="button" aria-label="Vodka shots">
+            <img class="iconImg" src="Vodka.jpg" alt="Vodka icon" />
+            <div class="iconMeta">
+              <div class="iconName">Vodka</div>
+              <div class="iconCount" id="count-vodka">0</div>
+            </div>
           </div>
 
-          <div id="toast" class="toast">Saved ✓</div>
-          <div id="warn" class="warn">Drag & drop didn’t initialize. If you’re on a strict network/ad-blocker, try a different connection or browser.</div>
-          <div class="footer">Privacy: everything stays on your device unless you choose to share the image.</div>
+          <div class="iconBtnWrap" data-key="ale" role="button" aria-label="Brown Ale">
+            <img class="iconImg" src="Ale.jpg" alt="Ale icon" />
+            <div class="iconMeta">
+              <div class="iconName">Ale</div>
+              <div class="iconCount" id="count-ale">0</div>
+            </div>
+          </div>
+
+          <div class="iconBtnWrap" data-key="jello" role="button" aria-label="Jello shots">
+            <img class="iconImg" src="Jello.jpg" alt="Jello icon" />
+            <div class="iconMeta">
+              <div class="iconName">Jello</div>
+              <div class="iconCount" id="count-jello">0</div>
+            </div>
+          </div>
+
+          <div class="iconBtnWrap" data-key="mead" role="button" aria-label="Meads">
+            <img class="iconImg" src="Mead.jpg" alt="Mead icon" />
+            <div class="iconMeta">
+              <div class="iconName">Mead</div>
+              <div class="iconCount" id="count-mead">0</div>
+            </div>
+          </div>
+
+          <div class="iconBtnWrap" data-key="smoke" role="button" aria-label="Bowls">
+            <img class="iconImg" src="Smoke.jpg" alt="Smoke icon" />
+            <div class="iconMeta">
+              <div class="iconName">Smoke</div>
+              <div class="iconCount" id="count-smoke">0</div>
+            </div>
+          </div>
         </div>
+
+        <div class="row">
+          <button id="resetCountsBtn" class="danger" type="button">Reset counts</button>
+        </div>
+
+        <div class="tiny">These totals will appear on the parchment after you submit.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Movie Rankings</h2>
+        <p class="sub">Tip: press and hold the <span class="kbd">≡</span> handle to drag.</p>
+
+        <ul id="list" aria-label="Movie ranking list"></ul>
+
+        <div class="row">
+          <button id="submitBtn" class="primary" type="button">Submit (lock & make parchment)</button>
+          <button id="downloadBtn" type="button" disabled>Download parchment image</button>
+          <button id="resetBtn" class="danger" type="button">Reset all</button>
+          <button id="copyBtn" type="button">Copy summary</button>
+        </div>
+
+        <div id="toast" class="toast">Saved ✓</div>
+        <div id="warn" class="warn">Drag & drop didn’t initialize. If you’re on a strict network/ad-blocker, try a different connection or browser.</div>
+        <div class="footer">Privacy: everything stays on your device unless you choose to share the image.</div>
       </div>
 
       <div id="finalWrap">
-        <div id="parchment" class="parchment" role="region" aria-label="Final ranking parchment">
+        <div id="parchment" class="parchment" role="region" aria-label="Final quest parchment">
           <div class="parchmentHeader">
-            <div class="parchmentTitle">Final Rankings</div>
+            <div class="parchmentTitle">Final Quest Record</div>
             <div class="parchmentStamp">SEALED</div>
           </div>
           <div id="parchmentName" class="parchmentName">—</div>
+
+          <div class="questTitle" id="questTitle">—</div>
+          <div id="questLines"></div>
+
+          <div class="divider"></div>
+
+          <div class="questTitle">Movie Rankings</div>
           <ol class="ink" id="finalList"></ol>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Map Modal -->
   <div id="mapModal" class="modalOverlay" aria-hidden="true">
     <div class="modalShell" role="dialog" aria-label="Middle-earth map">
       <div class="modalTop">
@@ -293,7 +377,6 @@
       </div>
       <div class="mapStage" id="mapStage">
         <div class="mapInner">
-          <!-- IMPORTANT: upload Middle_Earth.png into your GitHub repo root alongside index.html -->
           <img id="mapImg" class="mapImg" src="Middle_Earth.png" alt="Map of Middle-earth" />
         </div>
         <div class="mapHint">Pinch to zoom • Drag to pan • Double-tap to zoom</div>
@@ -306,9 +389,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.6.1/dist/panzoom.min.js"></script>
 
   <script>
-    const STORAGE_KEY_ORDER = "lotr_rank_order_v5";
-    const STORAGE_KEY_LOCK  = "lotr_rank_locked_v5";
-    const STORAGE_KEY_NAME  = "lotr_rank_name_v5";
+    const STORAGE_KEY_ORDER = "lotr_rank_order_v6";
+    const STORAGE_KEY_LOCK  = "lotr_rank_locked_v6";
+    const STORAGE_KEY_NAME  = "lotr_rank_name_v6";
+    const STORAGE_KEY_COUNTS= "lotr_rank_counts_v6";
 
     const titlesDefault = [
       "The Hobbit",
@@ -319,7 +403,6 @@
       "Return of the King"
     ];
 
-    // Option A safe replacements
     const SAFE_REPLACEMENTS = ["Dusk","Ember","Merry","Mirth","Stub","Froth","Muck","Soot","Brisk","Odd","Baffled"];
     const PART12_ALLOWED = ["Huge","Slimey","Smelly","Sticky","Thick","Little","Frumpy","Ass","Fart","Dump","Fat","Wood","Bush","Fag","Black","Retard","Dick","Cock","Shit","Fuck","Gay","Hog","Nips","Goblin","Nude","Nutsack","Taint","Wild","Hole","Dirty","Pussy","Tits"];
     const PART12_POOL = PART12_ALLOWED.concat(SAFE_REPLACEMENTS);
@@ -339,7 +422,21 @@
     const parchmentEl = document.getElementById("parchment");
     const parchmentNameEl = document.getElementById("parchmentName");
 
-    // Map modal DOM
+    const questTitleEl = document.getElementById("questTitle");
+    const questLinesEl = document.getElementById("questLines");
+
+    const resetBtn = document.getElementById("resetBtn");
+    const copyBtn  = document.getElementById("copyBtn");
+
+    const resetCountsBtn = document.getElementById("resetCountsBtn");
+    const countsEls = {
+      vodka: document.getElementById("count-vodka"),
+      ale: document.getElementById("count-ale"),
+      jello: document.getElementById("count-jello"),
+      mead: document.getElementById("count-mead"),
+      smoke: document.getElementById("count-smoke"),
+    };
+
     const mapModal = document.getElementById("mapModal");
     const viewMapBtn = document.getElementById("viewMapBtn");
     const closeMapBtn = document.getElementById("closeMapBtn");
@@ -349,6 +446,7 @@
 
     let sortableInstance = null;
     let panzoomInstance = null;
+    let counts = loadCounts();
 
     function showToast(text="Saved ✓") {
       toast.textContent = text;
@@ -450,14 +548,71 @@
       }
     }
 
-    function renderParchment(name, order) {
+    function loadCounts() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_COUNTS);
+        if (!raw) return { vodka:0, ale:0, jello:0, mead:0, smoke:0 };
+        const obj = JSON.parse(raw);
+        return {
+          vodka: Number(obj.vodka)||0,
+          ale: Number(obj.ale)||0,
+          jello: Number(obj.jello)||0,
+          mead: Number(obj.mead)||0,
+          smoke: Number(obj.smoke)||0,
+        };
+      } catch(e) {
+        return { vodka:0, ale:0, jello:0, mead:0, smoke:0 };
+      }
+    }
+
+    function renderCounts(c) {
+      countsEls.vodka.textContent = c.vodka;
+      countsEls.ale.textContent = c.ale;
+      countsEls.jello.textContent = c.jello;
+      countsEls.mead.textContent = c.mead;
+      countsEls.smoke.textContent = c.smoke;
+    }
+
+    function saveCounts(c) {
+      localStorage.setItem(STORAGE_KEY_COUNTS, JSON.stringify(c));
+      showToast("Saved ✓");
+    }
+
+    function plural(n, singular, pluralWord) {
+      return n === 1 ? singular : (pluralWord || (singular + "s"));
+    }
+
+    function buildQuestLines(name, c) {
+      questTitleEl.textContent = `${name} has consumed on his quest...`;
+      questLinesEl.innerHTML = "";
+
+      const lines = [
+        `took ${c.vodka} ${plural(c.vodka, "shot", "shots")} of vodka`,
+        `Consumed ${c.ale} Brown ${plural(c.ale, "Ale", "Ales")}`,
+        `had ${c.jello} jello ${plural(c.jello, "shot", "shots")}`,
+        `drank ${c.mead} ${plural(c.mead, "mead", "meads")}`,
+        `ripped ${c.smoke} ${plural(c.smoke, "bowl", "bowls")}`
+      ];
+
+      lines.forEach((t) => {
+        const div = document.createElement("div");
+        div.className = "questLine";
+        div.textContent = t + ".";
+        questLinesEl.appendChild(div);
+      });
+    }
+
+    function renderParchment(name, c, order) {
       parchmentNameEl.textContent = name;
+      buildQuestLines(name, c);
+
       finalList.innerHTML = "";
       order.forEach((t, i) => {
         const li = document.createElement("li");
         li.innerHTML = `<small>${i+1}.</small>${t}`;
         finalList.appendChild(li);
       });
+
       finalWrap.style.display = "block";
       downloadBtn.disabled = false;
     }
@@ -470,83 +625,67 @@
         useCORS: true
       });
       const link = document.createElement("a");
-      link.download = "final-rankings.png";
+      link.download = "quest-record.png";
       link.href = canvas.toDataURL("image/png");
       link.click();
       showToast("Image saved ✓");
     }
 
-    // Map modal logic
     function openMap() {
       mapModal.style.display = "block";
       mapModal.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
 
-      // Init panzoom once
       if (!panzoomInstance && typeof Panzoom !== "undefined") {
-        panzoomInstance = Panzoom(mapImg, {
-          maxScale: 6,
-          minScale: 1,
-          contain: "outside"
-        });
-
-        // Enable wheel zoom on desktop and pinch zoom on mobile
+        panzoomInstance = Panzoom(mapImg, { maxScale: 6, minScale: 1, contain: "outside" });
         mapStage.addEventListener("wheel", panzoomInstance.zoomWithWheel, { passive: false });
-        // Double tap to zoom (simple)
         let lastTap = 0;
-        mapStage.addEventListener("touchend", (e) => {
+        mapStage.addEventListener("touchend", () => {
           const now = Date.now();
-          if (now - lastTap < 260) {
-            // double tap: zoom in a bit centered
-            panzoomInstance.zoomIn();
-          }
+          if (now - lastTap < 260) panzoomInstance.zoomIn();
           lastTap = now;
         }, { passive: true });
       }
-
-      // Reset view each time opened so it starts nice
       if (panzoomInstance) panzoomInstance.reset();
     }
-
     function closeMap() {
       mapModal.style.display = "none";
       mapModal.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
-
     viewMapBtn.addEventListener("click", openMap);
     closeMapBtn.addEventListener("click", closeMap);
     resetZoomBtn.addEventListener("click", () => panzoomInstance && panzoomInstance.reset());
-
-    // Close when tapping outside the shell
-    mapModal.addEventListener("click", (e) => {
-      if (e.target === mapModal) closeMap();
-    });
-
-    // Close on Escape
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && mapModal.style.display === "block") closeMap();
-    });
+    mapModal.addEventListener("click", (e) => { if (e.target === mapModal) closeMap(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && mapModal.style.display === "block") closeMap(); });
 
     // Init
     setName(loadName());
     render(loadOrder());
     initSortable();
+    renderCounts(counts);
 
     function applyLockedState() {
       if (isLocked()) {
         destroySortable();
         submitBtn.disabled = true;
         rerollBtn.disabled = true;
+        resetCountsBtn.disabled = true;
         submitBtn.textContent = "Submitted ✓ (locked)";
         rerollBtn.textContent = "Name locked ✓";
+
         const nm = loadName();
-        renderParchment(nm, loadOrder());
+        const ord = loadOrder();
+        const c = loadCounts();
+        counts = c;
+        renderCounts(c);
+        renderParchment(nm, c, ord);
       } else {
         finalWrap.style.display = "none";
         downloadBtn.disabled = true;
         submitBtn.disabled = false;
         rerollBtn.disabled = false;
+        resetCountsBtn.disabled = false;
         submitBtn.textContent = "Submit (lock & make parchment)";
         rerollBtn.textContent = "Re-roll name";
       }
@@ -561,12 +700,56 @@
       showToast("Name saved ✓");
     });
 
-    document.getElementById("resetBtn").addEventListener("click", () => {
+    document.getElementById("iconsRow").addEventListener("click", (e) => {
+      if (isLocked()) return;
+      const btn = e.target.closest(".iconBtnWrap");
+      if (!btn) return;
+      const key = btn.dataset.key;
+      counts[key] = (counts[key] || 0) + 1;
+      renderCounts(counts);
+      saveCounts(counts);
+    });
+
+    resetCountsBtn.addEventListener("click", () => {
+      if (isLocked()) return;
+      counts = { vodka:0, ale:0, jello:0, mead:0, smoke:0 };
+      renderCounts(counts);
+      localStorage.setItem(STORAGE_KEY_COUNTS, JSON.stringify(counts));
+      showToast("Counts reset ✓");
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const nm = nameValueEl.textContent || loadName();
+      const c = loadCounts();
+      const ord = currentOrder().map((t, i) => `${i+1}. ${t}`).join("\n");
+      const summary =
+`${nm} has consumed on his quest...
+- took ${c.vodka} ${plural(c.vodka, "shot", "shots")} of vodka
+- Consumed ${c.ale} Brown ${plural(c.ale, "Ale", "Ales")}
+- had ${c.jello} jello ${plural(c.jello, "shot", "shots")}
+- drank ${c.mead} ${plural(c.mead, "mead", "meads")}
+- ripped ${c.smoke} ${plural(c.smoke, "bowl", "bowls")}
+
+Movie Rankings:
+${ord}`;
+      try {
+        await navigator.clipboard.writeText(summary);
+        showToast("Copied ✓");
+      } catch(e) {
+        alert(summary);
+      }
+    });
+
+    resetBtn.addEventListener("click", () => {
       localStorage.removeItem(STORAGE_KEY_ORDER);
       localStorage.removeItem(STORAGE_KEY_NAME);
+      localStorage.removeItem(STORAGE_KEY_COUNTS);
       setLocked(false);
 
       setName(generateName());
+      counts = { vodka:0, ale:0, jello:0, mead:0, smoke:0 };
+      renderCounts(counts);
+
       render(titlesDefault.slice());
       refreshRanks();
 
@@ -576,30 +759,21 @@
       showToast("Reset ✓");
     });
 
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      const order = currentOrder().map((t, i) => `${i+1}. ${t}`).join("\n");
-      const full = `${nameValueEl.textContent}\n\n${order}`;
-      try {
-        await navigator.clipboard.writeText(full);
-        showToast("Copied ✓");
-      } catch(e) {
-        alert(full);
-      }
-    });
-
     submitBtn.addEventListener("click", () => {
       saveOrder();
       const nm = nameValueEl.textContent || loadName();
       localStorage.setItem(STORAGE_KEY_NAME, nm);
+      localStorage.setItem(STORAGE_KEY_COUNTS, JSON.stringify(counts));
 
       setLocked(true);
       destroySortable();
       submitBtn.disabled = true;
       rerollBtn.disabled = true;
+      resetCountsBtn.disabled = true;
       submitBtn.textContent = "Submitted ✓ (locked)";
       rerollBtn.textContent = "Name locked ✓";
 
-      renderParchment(nm, loadOrder());
+      renderParchment(nm, counts, loadOrder());
       showToast("Submitted ✓");
       setTimeout(() => parchmentEl.scrollIntoView({behavior:"smooth", block:"start"}), 150);
     });
@@ -608,11 +782,6 @@
       downloadParchmentPng().catch(() => {
         alert("Couldn’t generate the image on this device/browser. Try Chrome or Safari, or take a screenshot of the parchment.");
       });
-    });
-
-    // If the map image fails to load, show a helpful message in console (common if image wasn't uploaded)
-    mapImg.addEventListener("error", () => {
-      console.warn("Map image not found. Upload Middle_Earth.png to your repo root next to index.html.");
     });
   </script>
 </body>
